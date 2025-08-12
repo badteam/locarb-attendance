@@ -1,0 +1,42 @@
+name: Build and Deploy Flutter Web to Firebase Hosting
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          sudo apt-get update && sudo apt-get install -y unzip
+          unzip -o locarb_attendance_full_v1.zip -d .
+          # لو اتفك داخل مجلد بنفس الاسم، انقل المحتوى للأساس:
+          if [ -d "locarb_attendance_full_v1" ]; then
+            shopt -s dotglob
+            mv locarb_attendance_full_v1/* .
+          fi
+          ls -la
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      - name: Build Web
+        run: flutter build web --release
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: locarb-attendance-v2
