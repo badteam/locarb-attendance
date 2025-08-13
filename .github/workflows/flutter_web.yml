@@ -34,6 +34,7 @@ jobs:
           fi
           test -f web/index.html && echo "web/index.html OK" || echo "no web/index.html (will continue)"
 
+      # يكتب ملف الـ Onboarding المصحّح داخل الشجرة بعد الفكّ
       - name: Patch onboarding_screen.dart (heredoc)
         shell: bash
         run: |
@@ -170,7 +171,7 @@ jobs:
             }
           }
           EOF
-          sed -n '1,40p' lib/screens/onboarding/onboarding_screen.dart || true
+          sed -n '1,30p' lib/screens/onboarding/onboarding_screen.dart || true
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -180,13 +181,19 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
+      # Debug آمن: يتأكد إن السر موجود (يطبع الطول فقط)
+      - name: Debug FIREBASE_SERVICE_ACCOUNT presence
+        run: echo "Service account JSON length: ${#FIREBASE_SERVICE_ACCOUNT}"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Build Web
         run: flutter build web --release
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets[FIREBASE_SERVICE_ACCOUNT] }}'
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: locarb-attendance-v2
