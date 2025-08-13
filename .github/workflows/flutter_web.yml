@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Unzip project(s)
         run: |
           sudo apt-get update && sudo apt-get install -y unzip
           unzip -o locarb_attendance_full_v1.zip -d .
@@ -20,7 +20,8 @@ jobs:
             shopt -s dotglob
             mv locarb_attendance_full_v1/* .
           fi
-          ls -la
+          unzip -o locarb_web_folder_fix_v2.zip -d .
+          ls -la web
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
