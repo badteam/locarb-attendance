@@ -3,7 +3,7 @@ name: Build and Deploy Flutter Web to Firebase Hosting
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}   # تشغله يدويًا من Actions
+  workflow_dispatch: {}   # تشغيل يدوي من Actions
 
 jobs:
   build-deploy:
@@ -16,29 +16,166 @@ jobs:
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      # (اختياري) فكّ مشروعك الأساسي لو رافع zip كامل باسم locarb_attendance_full_v1.zip
+      # فكّ المشروع الرئيسي لو مرفوع كملف ZIP
       - name: Unzip main project (if exists)
         run: |
-          if [ -f "locarb_attendance_full_v1.zip" ]; then
-            unzip -o locarb_attendance_full_v1.zip -d .
-            if [ -d "locarb_attendance_full_v1" ]; then
-              shopt -s dotglob
-              mv locarb_attendance_full_v1/* .
+            if [ -f "locarb_attendance_full_v1.zip" ]; then
+              unzip -o locarb_attendance_full_v1.zip -d .
+              if [ -d "locarb_attendance_full_v1" ]; then
+                shopt -s dotglob
+                mv locarb_attendance_full_v1/* .
+              fi
             fi
-          fi
-          ls -la
+            ls -la
 
-      # فكّ مجلد الويب الجديد (اسم الملف اللي اديتهولي)
-      - name: Unzip web folder (required)
+      # فكّ مجلد الويب الجاهز لو مرفوع (اختياري لكنه مفيد للـ index.html)
+      - name: Unzip web folder (optional)
         run: |
-          if [ ! -f "locarb_web_folder_ready.zip" ]; then
-            echo "ERROR: locarb_web_folder_ready.zip not found in repo root."
-            exit 1
+          if [ -f "locarb_web_folder_ready.zip" ]; then
+            unzip -o locarb_web_folder_ready.zip -d .
           fi
-          unzip -o locarb_web_folder_ready.zip -d .
-          # تأكد إن web/ بقى موجود وفيه index.html
-          test -f web/index.html && echo "web/index.html OK" || (echo "Missing web/index.html" && exit 1)
-          ls -la web
+          # تأكيد وجود web/index.html قبل البناء
+          test -f web/index.html && echo "web/index.html OK" || echo "web/index.html not found (will let Flutter create if project already has web/)"
+
+      # إنشاء/استبدال ملف Onboarding السليم داخل الشجرة بعد الفكّ
+      - name: Patch onboarding_screen.dart (heredoc)
+        run: |
+          mkdir -p lib/screens/onboarding
+          cat > lib/screens/onboarding/onboarding_screen.dart <<'EOF'
+import 'package:flutter/material.dart';
+
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final _controller = PageController();
+  int _page = 0;
+
+  final _titles = const [
+    'مرحبًا بك في LoCarb Attendance',
+    'تسجيل الحضور بسهولة',
+    'تقارير وإشعارات فورية',
+  ];
+
+  final _bodies = const [
+    'إدارة حضور الموظفين والإجازات والمرتبات بسهولة!',
+    'تسجيل الحضور والانصراف من الجوال مع التحقق من الموقع الجغرافي.',
+    'استلم إشعارات فورية واطّلع على تقارير قوية للأدمن والموظفين.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemCount: _titles.length,
+                itemBuilder: (context, i) {
+                  return Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.verified_user, size: 120),
+                        const SizedBox(height: 24),
+                        Text(
+                          _titles[i],
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.rtl,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _bodies[i],
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.rtl,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            _Dots(count: _titles.length, index: _page),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushReplacementNamed(context, '/login'),
+                    child: const Text('تخطي', textDirection: TextDirection.rtl),
+                  ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () {
+                      if (_page < _titles.length - 1) {
+                        _controller.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      } else {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
+                    },
+                    child: Text(
+                      _page < _titles.length - 1 ? 'التالي' : 'ابدأ الآن',
+                      textDirection: TextDirection.rtl,
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Dots extends StatelessWidget {
+  final int count;
+  final int index;
+  const _Dots({required this.count, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (i) {
+        final active = i == index;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          height: 8,
+          width: active ? 24 : 8,
+          decoration: BoxDecoration(
+            color: active ? Colors.orange : Colors.grey.shade400,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }),
+    );
+  }
+}
+EOF
+          echo "Patched lib/screens/onboarding/onboarding_screen.dart"
+          sed -n '1,40p' lib/screens/onboarding/onboarding_screen.dart || true
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
