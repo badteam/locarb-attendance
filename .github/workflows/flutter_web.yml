@@ -3,24 +3,41 @@ name: Build and Deploy Flutter Web to Firebase Hosting
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}   # يخلّي عندك زر "Run workflow" يدويًا
+  workflow_dispatch: {}   # تشغله يدويًا من Actions
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unzip project(s)
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      # (اختياري) فكّ مشروعك الأساسي لو رافع zip كامل باسم locarb_attendance_full_v1.zip
+      - name: Unzip main project (if exists)
         run: |
-          sudo apt-get update && sudo apt-get install -y unzip
-          unzip -o locarb_attendance_full_v1.zip -d .
-          if [ -d "locarb_attendance_full_v1" ]; then
-            shopt -s dotglob
-            mv locarb_attendance_full_v1/* .
+          if [ -f "locarb_attendance_full_v1.zip" ]; then
+            unzip -o locarb_attendance_full_v1.zip -d .
+            if [ -d "locarb_attendance_full_v1" ]; then
+              shopt -s dotglob
+              mv locarb_attendance_full_v1/* .
+            fi
           fi
-          unzip -o locarb_web_folder_fix_v2.zip -d .
+          ls -la
+
+      # فكّ مجلد الويب الجديد (اسم الملف اللي اديتهولي)
+      - name: Unzip web folder (required)
+        run: |
+          if [ ! -f "locarb_web_folder_ready.zip" ]; then
+            echo "ERROR: locarb_web_folder_ready.zip not found in repo root."
+            exit 1
+          fi
+          unzip -o locarb_web_folder_ready.zip -d .
+          # تأكد إن web/ بقى موجود وفيه index.html
+          test -f web/index.html && echo "web/index.html OK" || (echo "Missing web/index.html" && exit 1)
           ls -la web
 
       - name: Setup Flutter
