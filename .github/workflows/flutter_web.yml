@@ -3,7 +3,7 @@ name: Build and Deploy Flutter Web to Firebase Hosting
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}   # تشغيل يدوي من Actions
+  workflow_dispatch: {}   # يسمح بتشغيل يدوي
 
 jobs:
   build-deploy:
@@ -16,32 +16,32 @@ jobs:
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      # فكّ المشروع الرئيسي لو مرفوع كملف ZIP
+      # فكّ مشروعك الأساسي لو مرفوع كـ ZIP
       - name: Unzip main project (if exists)
         run: |
-            if [ -f "locarb_attendance_full_v1.zip" ]; then
-              unzip -o locarb_attendance_full_v1.zip -d .
-              if [ -d "locarb_attendance_full_v1" ]; then
-                shopt -s dotglob
-                mv locarb_attendance_full_v1/* .
-              fi
+          if [ -f "locarb_attendance_full_v1.zip" ]; then
+            unzip -o locarb_attendance_full_v1.zip -d .
+            if [ -d "locarb_attendance_full_v1" ]; then
+              shopt -s dotglob
+              mv locarb_attendance_full_v1/* .
             fi
-            ls -la
+          fi
+          ls -la
 
-      # فكّ مجلد الويب الجاهز لو مرفوع (اختياري لكنه مفيد للـ index.html)
+      # فكّ مجلد الويب لو مرفوع (عشان index.html)
       - name: Unzip web folder (optional)
         run: |
           if [ -f "locarb_web_folder_ready.zip" ]; then
             unzip -o locarb_web_folder_ready.zip -d .
           fi
-          # تأكيد وجود web/index.html قبل البناء
-          test -f web/index.html && echo "web/index.html OK" || echo "web/index.html not found (will let Flutter create if project already has web/)"
+          # لو ما فيش web/index.html هيسيب Flutter ينشئه لو موجود أصلاً في المشروع
+          test -f web/index.html && echo "web/index.html OK" || echo "web/index.html not found (will proceed)"
 
-      # إنشاء/استبدال ملف Onboarding السليم داخل الشجرة بعد الفكّ
+      # كتابة/استبدال ملف Onboarding بنسخة سليمة (باستخدام heredoc)
       - name: Patch onboarding_screen.dart (heredoc)
         run: |
           mkdir -p lib/screens/onboarding
-          cat > lib/screens/onboarding/onboarding_screen.dart <<'EOF'
+          cat <<'EOF' > lib/screens/onboarding/onboarding_screen.dart
 import 'package:flutter/material.dart';
 
 class OnboardingScreen extends StatefulWidget {
